@@ -25,6 +25,12 @@ public class GuiHudMove extends Screen
     }
 
     @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta)
+    {
+        // Suppress vanilla blur — the HUD is rendered before the GUI and must not be blurred
+    }
+
+    @Override
     public void render(DrawContext drawContext, int mouseX, int mouseY, float delta)
     {
         // Dim the world slightly so the HUD is easier to see

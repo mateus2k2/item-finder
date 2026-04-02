@@ -29,6 +29,7 @@ public class ItemListManager
     private int activeListIndex = -1;
     private int currentItemIndex;
     private final Map<String, List<ContainerResult>> allResults = new HashMap<>();
+    @Nullable private String quickSearchId = null;
 
     private ItemListManager() {}
 
@@ -289,6 +290,61 @@ public class ItemListManager
         }
     }
 
+    public void prevItem()
+    {
+        ItemList list = this.getActiveList();
+        if (list == null || list.getItems().isEmpty()) return;
+
+        int size = list.getItems().size();
+
+        for (int i = 1; i <= size; i++)
+        {
+            int prev = (this.currentItemIndex - i + size) % size;
+
+            if (list.getItems().get(prev).isEnabled())
+            {
+                this.currentItemIndex = prev;
+                return;
+            }
+        }
+    }
+
+    public void setQuickSearch(String itemId)
+    {
+        this.quickSearchId = itemId;
+        this.runSearch();
+    }
+
+    public void clearQuickSearch()
+    {
+        this.quickSearchId = null;
+        this.runSearch();
+    }
+
+    public void unloadList()
+    {
+        this.loadedLists.clear();
+        this.activeListIndex = -1;
+        this.currentItemIndex = 0;
+        this.allResults.clear();
+        // keep quickSearch active if set, re-search for it alone
+        if (this.quickSearchId != null) this.runSearch();
+    }
+
+    @Nullable
+    public String getQuickSearchId()
+    {
+        return this.quickSearchId;
+    }
+
+    /** Returns the quick-search item if active, otherwise the current list item. */
+    @Nullable
+    public String getEffectiveItemId()
+    {
+        if (this.quickSearchId != null) return this.quickSearchId;
+        return this.getCurrentItemId();
+    }
+
     private void advanceToFirstEnabledItem()
     {
         ItemList list = this.getActiveList();
@@ -349,7 +405,7 @@ public class ItemListManager
     @Nullable
     public List<ContainerResult> getCurrentResults()
     {
-        String itemId = this.getCurrentItemId();
+        String itemId = this.getEffectiveItemId();
         if (itemId == null) return null;
         return this.allResults.get(itemId);
     }
@@ -375,20 +431,27 @@ public class ItemListManager
     public void runSearch()
     {
         this.allResults.clear();
-        ItemList list = this.getActiveList();
-        if (list == null) return;
 
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null) return;
 
         Set<String> enabledIds = new HashSet<>();
 
-        for (ItemEntry entry : list.getItems())
+        ItemList list = this.getActiveList();
+        if (list != null)
         {
-            if (entry.isEnabled())
+            for (ItemEntry entry : list.getItems())
             {
-                enabledIds.add(entry.getItemId());
+                if (entry.isEnabled())
+                {
+                    enabledIds.add(entry.getItemId());
+                }
             }
+        }
+
+        if (this.quickSearchId != null)
+        {
+            enabledIds.add(this.quickSearchId);
         }
 
         if (enabledIds.isEmpty()) return;

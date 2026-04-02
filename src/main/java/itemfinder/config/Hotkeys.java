@@ -9,6 +9,8 @@ public class Hotkeys
     public static final ConfigHotkey OPEN_LIST_BROWSER  = new ConfigHotkey("openListBrowser",  "I", KeybindSettings.RELEASE_EXCLUSIVE, "itemfinder.config.hotkeys.comment.openListBrowser").translatedName("itemfinder.config.hotkeys.name.openListBrowser");
     public static final ConfigHotkey OPEN_ITEM_MANAGER  = new ConfigHotkey("openItemManager",  "G", KeybindSettings.RELEASE_EXCLUSIVE, "itemfinder.config.hotkeys.comment.openItemManager").translatedName("itemfinder.config.hotkeys.name.openItemManager");
     public static final ConfigHotkey NEXT_ITEM          = new ConfigHotkey("nextItem",          "N", KeybindSettings.RELEASE_EXCLUSIVE, "itemfinder.config.hotkeys.comment.nextItem").translatedName("itemfinder.config.hotkeys.name.nextItem");
+    public static final ConfigHotkey PREV_ITEM          = new ConfigHotkey("prevItem",          "B", KeybindSettings.RELEASE_EXCLUSIVE, "itemfinder.config.hotkeys.comment.prevItem").translatedName("itemfinder.config.hotkeys.name.prevItem");
+    public static final ConfigHotkey OPEN_ITEM_SEARCH   = new ConfigHotkey("openItemSearch",    "",  KeybindSettings.RELEASE_EXCLUSIVE, "itemfinder.config.hotkeys.comment.openItemSearch").translatedName("itemfinder.config.hotkeys.name.openItemSearch");
     public static final ConfigHotkey OPEN_CONFIG        = new ConfigHotkey("openConfig",        "H", KeybindSettings.RELEASE_EXCLUSIVE, "itemfinder.config.hotkeys.comment.openConfig").translatedName("itemfinder.config.hotkeys.name.openConfig");
     public static final ConfigHotkey MOVE_HUD           = new ConfigHotkey("moveHud",            "",  KeybindSettings.RELEASE_EXCLUSIVE, "itemfinder.config.hotkeys.comment.moveHud").translatedName("itemfinder.config.hotkeys.name.moveHud");
 
@@ -16,6 +18,8 @@ public class Hotkeys
             OPEN_LIST_BROWSER,
             OPEN_ITEM_MANAGER,
             NEXT_ITEM,
+            PREV_ITEM,
+            OPEN_ITEM_SEARCH,
             OPEN_CONFIG,
             MOVE_HUD
     );

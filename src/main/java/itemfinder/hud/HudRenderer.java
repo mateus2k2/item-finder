@@ -27,7 +27,10 @@ import itemfinder.data.ItemListManager;
 
 public class HudRenderer implements IRenderer
 {
-    private static final Color4f COLOR_CONTAINER_CURRENT = new Color4f(1.0f, 0.5f, 0.0f, 0.8f);
+    /** Orange — containers for the active list item. */
+    private static final Color4f COLOR_LIST   = new Color4f(0.2f, 1.0f, 0.3f, 0.9f);
+    /** Cyan — containers for the quick-search item. */
+    private static final Color4f COLOR_SEARCH = new Color4f(0.0f, 0.8f, 1.0f, 0.9f);
 
     private static final int PAD       = 6;
     private static final int ICON_SIZE = 16;
@@ -49,19 +52,22 @@ public class HudRenderer implements IRenderer
         if (mc.player == null) return;
 
         ItemListManager manager = ItemListManager.getInstance();
-        ItemList activeList = manager.getActiveList();
-        if (activeList == null) return;
+        boolean isQuickSearch  = manager.getQuickSearchId() != null;
+        String effectiveItemId = manager.getEffectiveItemId();
 
-        ItemEntry currentEntry = manager.getCurrentEntry();
-        if (currentEntry == null) return;
+        // Need at least an item to display
+        if (effectiveItemId == null) return;
+        // If no list is loaded and no quick search, nothing to show
+        if (!isQuickSearch && manager.getActiveList() == null) return;
 
         // --- Build text content ---
-        int listSize    = activeList.getItems().size();
-        String itemId   = currentEntry.getItemId();
-        String itemName = getDisplayName(itemId);
+        String itemName = getDisplayName(effectiveItemId);
         int containers  = manager.getContainerCount();
         double dist     = manager.getNearestDistance();
-        boolean enabled = currentEntry.isEnabled();
+
+        // For quick-search, treat item as always enabled
+        ItemEntry currentEntry = isQuickSearch ? null : manager.getCurrentEntry();
+        boolean enabled = isQuickSearch || (currentEntry != null && currentEntry.isEnabled());
         boolean found   = enabled && containers > 0;
 
         // Primary line: item name + result
@@ -89,9 +95,19 @@ public class HudRenderer implements IRenderer
             accentColor  = 0xFFAA2222;
         }
 
-        // Secondary line: list info
-        String secondaryLine = activeList.getName()
-                + "  \u00a77[" + (manager.getCurrentItemIndex() + 1) + "/" + listSize + "]";
+        // Secondary line: list info or quick-search indicator
+        String secondaryLine;
+        if (isQuickSearch)
+        {
+            secondaryLine = "\u00a77(search)  \u00a78" + effectiveItemId;
+        }
+        else
+        {
+            ItemList activeList = manager.getActiveList();
+            int listSize = activeList.getItems().size();
+            secondaryLine = activeList.getName()
+                    + "  \u00a77[" + (manager.getCurrentItemIndex() + 1) + "/" + listSize + "]";
+        }
 
         // --- Measure ---
         int line1W = mc.textRenderer.getWidth(primaryLine);
@@ -104,8 +120,11 @@ public class HudRenderer implements IRenderer
 
         int panelW = PAD + 3 + PAD + contentW + PAD;  // PAD + accentBar(3) + PAD + content + PAD
         int panelH = PAD + contentH + PAD;
-        int panelX = Configs.Generic.HUD_X.getIntegerValue();
-        int panelY = Configs.Generic.HUD_Y.getIntegerValue();
+
+        int screenW = mc.getWindow().getScaledWidth();
+        int screenH = mc.getWindow().getScaledHeight();
+        int panelX  = Math.max(0, Math.min(screenW - panelW, Configs.Generic.HUD_X.getIntegerValue()));
+        int panelY  = Math.max(0, Math.min(screenH - panelH, Configs.Generic.HUD_Y.getIntegerValue()));
 
         lastPanelW = panelW;
         lastPanelH = panelH;
@@ -120,7 +139,7 @@ public class HudRenderer implements IRenderer
         ctx.fill(panelX, panelY, panelX + 3, panelY + panelH, accentColor);
 
         // --- Draw item icon ---
-        Identifier registryId = Identifier.tryParse(itemId);
+        Identifier registryId = Identifier.tryParse(effectiveItemId);
         int iconX = panelX + PAD + 3;
         int iconY = panelY + (panelH - ICON_SIZE) / 2;
 
@@ -146,10 +165,23 @@ public class HudRenderer implements IRenderer
     public void onRenderWorldLast(Matrix4f posMatrix, Matrix4f projMatrix)
     {
         ItemListManager manager = ItemListManager.getInstance();
-        if (manager.getActiveList() == null) return;
 
-        List<ContainerResult> currentResults = manager.getCurrentResults();
-        if (currentResults == null || currentResults.isEmpty()) return;
+        // Collect results to draw: list item (green) and/or quick-search item (cyan)
+        String listItemId   = manager.getCurrentItemId();
+        String searchItemId = manager.getQuickSearchId();
+
+        // Nothing to draw if neither source is active
+        if (listItemId == null && searchItemId == null) return;
+
+        java.util.Map<String, List<ContainerResult>> allResults = manager.getAllResults();
+
+        List<ContainerResult> listResults   = listItemId   != null ? allResults.get(listItemId)   : null;
+        List<ContainerResult> searchResults = searchItemId != null ? allResults.get(searchItemId) : null;
+
+        boolean hasListResults   = listResults   != null && !listResults.isEmpty();
+        boolean hasSearchResults = searchResults != null && !searchResults.isEmpty();
+
+        if (!hasListResults && !hasSearchResults) return;
 
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || mc.gameRenderer == null) return;
@@ -157,8 +189,8 @@ public class HudRenderer implements IRenderer
         net.minecraft.util.math.Vec3d camPos = mc.gameRenderer.getCamera().getCameraPos();
 
         boolean disableDepth = Configs.Generic.SHOW_THROUGH_WALLS.getBooleanValue();
-        float expand = 0.003f;
-        float lineWidth = 2.5f;
+        float expand    = 0.003f;
+        float lineWidth = 4.0f;
 
         RenderContext ctx = new RenderContext(
                 () -> "itemfinder:boxOutlines",
@@ -168,18 +200,38 @@ public class HudRenderer implements IRenderer
         );
         BufferBuilder buffer = ctx.getBuilder();
 
-        for (ContainerResult result : currentResults)
+        if (hasListResults)
         {
-            BlockPos pos = result.getPos();
-            float minX = (float) (pos.getX() - camPos.x - expand);
-            float minY = (float) (pos.getY() - camPos.y - expand);
-            float minZ = (float) (pos.getZ() - camPos.z - expand);
-            float maxX = (float) (pos.getX() - camPos.x + 1 + expand);
-            float maxY = (float) (pos.getY() - camPos.y + 1 + expand);
-            float maxZ = (float) (pos.getZ() - camPos.z + 1 + expand);
+            for (ContainerResult result : listResults)
+            {
+                BlockPos pos = result.getPos();
+                float minX = (float) (pos.getX() - camPos.x - expand);
+                float minY = (float) (pos.getY() - camPos.y - expand);
+                float minZ = (float) (pos.getZ() - camPos.z - expand);
+                float maxX = (float) (pos.getX() - camPos.x + 1 + expand);
+                float maxY = (float) (pos.getY() - camPos.y + 1 + expand);
+                float maxZ = (float) (pos.getZ() - camPos.z + 1 + expand);
 
-            RenderUtils.drawBoxAllEdgesBatchedLines(
-                    minX, minY, minZ, maxX, maxY, maxZ, COLOR_CONTAINER_CURRENT, lineWidth, buffer);
+                RenderUtils.drawBoxAllEdgesBatchedLines(
+                        minX, minY, minZ, maxX, maxY, maxZ, COLOR_LIST, lineWidth, buffer);
+            }
+        }
+
+        if (hasSearchResults)
+        {
+            for (ContainerResult result : searchResults)
+            {
+                BlockPos pos = result.getPos();
+                float minX = (float) (pos.getX() - camPos.x - expand);
+                float minY = (float) (pos.getY() - camPos.y - expand);
+                float minZ = (float) (pos.getZ() - camPos.z - expand);
+                float maxX = (float) (pos.getX() - camPos.x + 1 + expand);
+                float maxY = (float) (pos.getY() - camPos.y + 1 + expand);
+                float maxZ = (float) (pos.getZ() - camPos.z + 1 + expand);
+
+                RenderUtils.drawBoxAllEdgesBatchedLines(
+                        minX, minY, minZ, maxX, maxY, maxZ, COLOR_SEARCH, lineWidth, buffer);
+            }
         }
 
         try

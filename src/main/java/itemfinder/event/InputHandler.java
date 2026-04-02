@@ -11,6 +11,7 @@ import itemfinder.config.Hotkeys;
 import itemfinder.data.ItemListManager;
 import itemfinder.gui.GuiConfigs;
 import itemfinder.gui.GuiHudMove;
+import itemfinder.gui.GuiItemSearch;
 import itemfinder.gui.GuiListFileBrowser;
 import itemfinder.gui.GuiListManager;
 
@@ -39,6 +40,23 @@ public class InputHandler implements IKeybindProvider, IKeyboardInputHandler
 
         Hotkeys.NEXT_ITEM.getKeybind().setCallback((action, key) -> {
             ItemListManager.getInstance().nextItem();
+            return true;
+        });
+
+        Hotkeys.PREV_ITEM.getKeybind().setCallback((action, key) -> {
+            ItemListManager.getInstance().prevItem();
+            return true;
+        });
+
+        Hotkeys.OPEN_ITEM_SEARCH.getKeybind().setCallback((action, key) -> {
+            if (ItemListManager.getInstance().getQuickSearchId() != null)
+            {
+                ItemListManager.getInstance().clearQuickSearch();
+            }
+            else
+            {
+                net.minecraft.client.MinecraftClient.getInstance().setScreen(new GuiItemSearch());
+            }
             return true;
         });
 

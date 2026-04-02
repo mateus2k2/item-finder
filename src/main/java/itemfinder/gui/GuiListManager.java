@@ -63,6 +63,29 @@ public class GuiListManager extends GuiListBase<ItemEntry, WidgetItemEntry, Widg
         ButtonGeneric settingsBtn = new ButtonGeneric(x, y, -1, 20,
                 StringUtils.translate("itemfinder.gui.button.settings"));
         this.addButton(settingsBtn, (btn, mb) -> GuiBase.openGui(new GuiConfigs()));
+        x += settingsBtn.getWidth() + 4;
+
+        if (ItemListManager.getInstance().getQuickSearchId() != null)
+        {
+            ButtonGeneric clearSearchBtn = new ButtonGeneric(x, y, -1, 20,
+                    StringUtils.translate("itemfinder.gui.button.clear_search"));
+            this.addButton(clearSearchBtn, (b, mb) -> {
+                ItemListManager.getInstance().clearQuickSearch();
+                GuiListManager.this.initGui();
+            });
+            x += clearSearchBtn.getWidth() + 4;
+        }
+
+        if (ItemListManager.getInstance().getActiveList() != null)
+        {
+            ButtonGeneric unloadBtn = new ButtonGeneric(x, y, -1, 20,
+                    StringUtils.translate("itemfinder.gui.button.unload_list"));
+            this.addButton(unloadBtn, (b, mb) -> {
+                ItemListManager.getInstance().unloadList();
+                GuiListManager.this.reCreateListWidget();
+                GuiListManager.this.initGui();
+            });
+        }
     }
 
     @Override
