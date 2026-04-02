@@ -53,6 +53,15 @@ public class ContainerCache
         return this.cache;
     }
 
+    /** Called by Servux response handler with pre-parsed item counts. */
+    public void updateFromNbt(BlockPos pos, java.util.Map<String, Integer> counts)
+    {
+        if (!counts.isEmpty())
+        {
+            this.cache.put(pos, counts);
+        }
+    }
+
     public void remove(BlockPos pos)
     {
         this.cache.remove(pos);

@@ -123,24 +123,6 @@ The output jar will be in `build/libs/`.
 - Try using Servux to retrieve container item information.
 - Investigate whether container data around the player can be accessed and synced to the client.
 
-### Controls & UX
-- Add a hotkey to return to the previous list view.
-- Implement a manual item search feature independent of the main list:
-  - Hotkey to open a search popup
-  - Text input field
-  - Autocomplete for item names
-  - Display matching items with icons
-
-### HUD Improvements
-- Fix HUD positioning:
-  - Currently uses absolute positioning
-  - When moved to the top-left and the screen size decreases, it disappears
-  - Refactor to use a responsive solution (e.g., MaLiLib positioning system)
-
-- Fix drag-and-drop behavior:
-  - Current implementation blurs the entire screen, including the HUD itself
-  - Ensure only the background (or intended elements) are affected
-
 ---
 
 ## Useful Links
