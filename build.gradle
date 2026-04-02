@@ -1,0 +1,53 @@
+plugins {
+	id 'fabric-loom' version '1.15-SNAPSHOT'
+}
+
+group = project.group + "." + project.mod_id
+version = project.mod_version
+
+if (version.endsWith('-dev')) {
+	version += "." + new Date().format('yyyyMMdd.HHmmss')
+}
+
+base.archivesName = project.mod_file_name + '-' + project.minecraft_version_out
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	maven {
+		name 'masa'
+		url 'https://masa.dy.fi/maven/sakura-ryoko'
+	}
+	maven { url 'https://maven.terraformersmc.com/releases/' }
+	maven { url 'https://maven.fallenbreath.me/releases' }
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings "net.fabricmc:yarn:${project.mappings_version}:v2"
+	modImplementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+	implementation "com.google.code.findbugs:jsr305:3.0.2"
+
+	modImplementation "fi.dy.masa.malilib:malilib-fabric-${project.minecraft_version}:${project.malilib_version}"
+
+	modCompileOnly "com.terraformersmc:modmenu:${project.mod_menu_version}"
+}
+
+processResources {
+	exclude '**/*.xcf'
+	inputs.property "mod_version", project.mod_version
+	filesMatching("fabric.mod.json") {
+		expand "mod_version": project.mod_version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.encoding = "UTF-8"
+	it.options.release = 21
+}
