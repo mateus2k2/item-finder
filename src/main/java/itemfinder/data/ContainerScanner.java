@@ -14,7 +14,7 @@ import itemfinder.config.Configs;
 /**
  * Scans loaded chunks around the player for block entities that implement
  * {@link Inventory} (chests, barrels, hoppers, shulker boxes, etc.).
- * Results feed {@link itemfinder.network.ServuxHandler} to request NBT data.
+ * Results are used by the tick handler to request NBT data via Litematica or direct inventory reads.
  */
 public class ContainerScanner
 {

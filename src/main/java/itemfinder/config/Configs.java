@@ -19,18 +19,22 @@ public class Configs implements IConfigHandler
 
     public static class Generic
     {
+        public static final ConfigBoolean ENABLED          = new ConfigBoolean("enabled",          true,  "itemfinder.config.generic.comment.enabled").translatedName("itemfinder.config.generic.name.enabled");
         public static final ConfigInteger SEARCH_RADIUS   = new ConfigInteger("searchRadius",   32, 4, 128, "itemfinder.config.generic.comment.searchRadius").translatedName("itemfinder.config.generic.name.searchRadius");
         public static final ConfigInteger SEARCH_INTERVAL = new ConfigInteger("searchInterval", 20, 1, 200, "itemfinder.config.generic.comment.searchInterval").translatedName("itemfinder.config.generic.name.searchInterval");
         public static final ConfigBoolean SHOW_THROUGH_WALLS = new ConfigBoolean("showThroughWalls", false, "itemfinder.config.generic.comment.showThroughWalls").translatedName("itemfinder.config.generic.name.showThroughWalls");
         public static final ConfigBoolean HIGHLIGHT_SLOTS    = new ConfigBoolean("highlightSlots",    true,  "itemfinder.config.generic.comment.highlightSlots").translatedName("itemfinder.config.generic.name.highlightSlots");
+        public static final ConfigBoolean DEBUG_LOG          = new ConfigBoolean("debugLog",          false, "itemfinder.config.generic.comment.debugLog").translatedName("itemfinder.config.generic.name.debugLog");
         public static final ConfigInteger HUD_X = new ConfigInteger("hudX", 4, 0, 3840, "itemfinder.config.generic.comment.hudX").translatedName("itemfinder.config.generic.name.hudX");
         public static final ConfigInteger HUD_Y = new ConfigInteger("hudY", 4, 0, 2160, "itemfinder.config.generic.comment.hudY").translatedName("itemfinder.config.generic.name.hudY");
 
         public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
+                ENABLED,
                 SEARCH_RADIUS,
                 SEARCH_INTERVAL,
                 SHOW_THROUGH_WALLS,
                 HIGHLIGHT_SLOTS,
+                DEBUG_LOG,
                 HUD_X,
                 HUD_Y
         );

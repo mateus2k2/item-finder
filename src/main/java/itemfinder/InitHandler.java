@@ -9,8 +9,6 @@ import itemfinder.config.Configs;
 import itemfinder.event.ClientTickHandler;
 import itemfinder.event.InputHandler;
 import itemfinder.hud.HudRenderer;
-import itemfinder.network.ServuxHandler;
-
 public class InitHandler implements IInitializationHandler
 {
     @Override
@@ -27,8 +25,5 @@ public class InitHandler implements IInitializationHandler
         RenderEventHandler.getInstance().registerWorldLastRenderer(hudRenderer);
 
         TickHandler.getInstance().registerClientTickHandler(new ClientTickHandler());
-
-        // Register Servux payload types (must happen before any world connection)
-        ServuxHandler.getInstance().registerPayloads();
     }
 }

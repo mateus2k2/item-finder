@@ -67,8 +67,9 @@ public abstract class MixinHandledScreen extends Screen
     private void itemfinder_highlightSlots(DrawContext drawContext, int mouseX, int mouseY, float delta, CallbackInfo ci)
     {
         if (!Configs.Generic.HIGHLIGHT_SLOTS.getBooleanValue()) return;
+        if (!Configs.Generic.ENABLED.getBooleanValue()) return;
 
-        String itemId = ItemListManager.getInstance().getCurrentItemId();
+        String itemId = ItemListManager.getInstance().getEffectiveItemId();
         if (itemId == null) return;
 
         Identifier id = Identifier.tryParse(itemId);

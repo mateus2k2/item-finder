@@ -11,15 +11,13 @@ if (version.endsWith('-dev')) {
 
 base.archivesName = project.mod_file_name + '-' + project.minecraft_version_out
 
-// loom {
-//     // mixin.defaultRefmapName = "hexcasting.mixins.refmap.json"
-//     // accessWidenerPath = project(":common").loom.accessWidenerPath
-//     runs {
-//         client {
-//             programArgs(["--username", "mateus2k2", "--uuid", "742068c6-d556-43a5-9ae7-40c5f0c0bd6b"])
-//         }
-//     }
-// }
+loom {
+    runs {
+        client {
+            programArgs(["--username", "mateus2k2", "--uuid", "742068c6-d556-43a5-9ae7-40c5f0c0bd6b"])
+        }
+    }
+}
 
 java {
 	sourceCompatibility = JavaVersion.VERSION_21
@@ -47,6 +45,7 @@ dependencies {
 	modImplementation "fi.dy.masa.malilib:malilib-fabric-${project.minecraft_version}:${project.malilib_version}"
 
 	modCompileOnly "com.terraformersmc:modmenu:${project.mod_menu_version}"
+	modCompileOnly "fi.dy.masa.litematica:litematica-fabric-${project.minecraft_version}:${project.litematica_version}"
 }
 
 processResources {
