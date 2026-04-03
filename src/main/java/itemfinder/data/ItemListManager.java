@@ -1,5 +1,7 @@
 package itemfinder.data;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,6 +25,7 @@ import itemfinder.config.Configs;
 
 public class ItemListManager
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger("itemfinder/ItemListManager");
     private static final ItemListManager INSTANCE = new ItemListManager();
 
     private final List<ItemList> loadedLists = new ArrayList<>();
@@ -464,6 +467,11 @@ public class ItemListManager
         Vec3d playerVec = mc.player.getEntityPos();
         int radius = Configs.Generic.SEARCH_RADIUS.getIntegerValue();
         Map<BlockPos, Map<String, Integer>> cache = ContainerCache.getInstance().getCache();
+        LOGGER.info("[runSearch] searching={} radius={} cacheSize={}", enabledIds, radius, cache.size());
+        for (Map.Entry<BlockPos, Map<String, Integer>> e : cache.entrySet())
+        {
+            LOGGER.info("[runSearch] cache entry {} -> {}", e.getKey(), e.getValue().keySet());
+        }
 
         for (Map.Entry<BlockPos, Map<String, Integer>> cacheEntry : cache.entrySet())
         {

@@ -164,14 +164,12 @@ public class ServuxHandler
     {
         if (nbt == null || nbt.isEmpty())
         {
-            LOGGER.info("[ServuxHandler] handleBlockEntityNbt: empty NBT for {}", pos);
             return;
         }
 
         NbtList items = nbt.getList("Items").orElse(new NbtList());
         if (items.isEmpty())
         {
-            LOGGER.info("[ServuxHandler] handleBlockEntityNbt: no Items list in NBT for {} (keys={})", pos, nbt.getKeys());
             return;
         }
 
@@ -181,8 +179,7 @@ public class ServuxHandler
         {
             NbtCompound slot  = items.getCompound(i).orElse(new NbtCompound());
             String itemId     = slot.getString("id").orElse("");
-            byte   rawCount   = slot.getByte("Count").orElse((byte) 0);
-            int    count      = rawCount & 0xFF; // unsigned byte
+            int    count      = slot.getInt("count").orElse(0);
 
             if (!itemId.isEmpty())
             {

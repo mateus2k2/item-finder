@@ -1,10 +1,14 @@
 package itemfinder.event;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.world.chunk.WorldChunk;
 import fi.dy.masa.malilib.interfaces.IClientTickHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import itemfinder.config.Configs;
+import itemfinder.data.ContainerCache;
 import itemfinder.data.ContainerScanner;
 import itemfinder.data.ItemListManager;
 import itemfinder.network.ServuxHandler;
@@ -34,26 +38,84 @@ public class ClientTickHandler implements IClientTickHandler
             ItemListManager.getInstance().runSearch();
         }
 
-        // Periodic Servux scan — only on multiplayer with Servux confirmed
+        // Periodic scan — Servux on multiplayer, direct inventory read on singleplayer
         if (++this.scanTick >= SCAN_INTERVAL)
         {
             this.scanTick = 0;
+            boolean sp = mc.isInSingleplayer();
+            LOGGER.info("[Scan] singleplayer={} servuxAvailable={}", sp, ServuxHandler.getInstance().isAvailable());
 
-            boolean available  = ServuxHandler.getInstance().isAvailable();
-            boolean singleplayer = mc.isInSingleplayer();
-            LOGGER.info("[ClientTickHandler] Scan tick — servuxAvailable={}, singleplayer={}", available, singleplayer);
-
-            if (available && !singleplayer)
+            if (sp)
             {
-                java.util.List<net.minecraft.util.math.BlockPos> containers =
-                        ContainerScanner.getInstance().findContainersInRadius();
-                LOGGER.info("[ClientTickHandler] Found {} containers in radius", containers.size());
-
+                scanSingleplayer(mc);
+            }
+            else if (ServuxHandler.getInstance().isAvailable())
+            {
+                java.util.List<net.minecraft.util.math.BlockPos> containers = ContainerScanner.getInstance().findContainersInRadius();
+                LOGGER.info("[Scan] Requesting {} containers via Servux", containers.size());
                 for (net.minecraft.util.math.BlockPos pos : containers)
                 {
                     ServuxHandler.getInstance().requestBlockEntity(pos);
                 }
             }
         }
+    }
+
+    private void scanSingleplayer(MinecraftClient mc)
+    {
+        if (mc.world == null || mc.getServer() == null) return;
+
+        java.util.List<net.minecraft.util.math.BlockPos> found = ContainerScanner.getInstance().findContainersInRadius();
+        LOGGER.info("[Scan/SP] Found {} containers, scheduling on server thread", found.size());
+
+        net.minecraft.registry.RegistryKey<net.minecraft.world.World> dimKey = mc.world.getRegistryKey();
+
+        // Must read server-side block entities from the server thread
+        mc.getServer().execute(() ->
+        {
+            net.minecraft.server.world.ServerWorld sw = mc.getServer().getWorld(dimKey);
+            if (sw == null) return;
+
+            java.util.Map<net.minecraft.util.math.BlockPos, java.util.Map<String, Integer>> snapshot = new java.util.HashMap<>();
+
+            for (net.minecraft.util.math.BlockPos pos : found)
+            {
+                BlockEntity be = sw.getBlockEntity(pos);
+                if (be instanceof Inventory inv)
+                {
+                    java.util.Map<String, Integer> counts = new java.util.HashMap<>();
+                    for (int i = 0; i < inv.size(); i++)
+                    {
+                        net.minecraft.item.ItemStack stack = inv.getStack(i);
+                        if (!stack.isEmpty())
+                        {
+                            net.minecraft.util.Identifier id = net.minecraft.registry.Registries.ITEM.getId(stack.getItem());
+                            if (id != null) counts.merge(id.toString(), stack.getCount(), Integer::sum);
+                        }
+                    }
+                    // Always put (even empty) so emptied containers get removed from cache
+                    snapshot.put(pos, counts);
+                }
+                else
+                {
+                    LOGGER.info("[Scan/SP] server BE at {} = {}", pos, be);
+                }
+            }
+
+            LOGGER.info("[Scan/SP] Read {} containers on server thread", snapshot.size());
+
+            // Apply results and search back on the client/render thread
+            if (!found.isEmpty())
+            {
+                mc.execute(() ->
+                {
+                    for (java.util.Map.Entry<net.minecraft.util.math.BlockPos, java.util.Map<String, Integer>> e : snapshot.entrySet())
+                    {
+                        ContainerCache.getInstance().updateFromNbt(e.getKey(), e.getValue());
+                    }
+                    ItemListManager.getInstance().runSearch();
+                });
+            }
+        });
     }
 }

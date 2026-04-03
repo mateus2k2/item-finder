@@ -3,7 +3,9 @@
   "minVersion": "0.8",
   "package": "itemfinder.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
+  "mixins": [
+    "MixinClientWorld"
+  ],
   "client": [
     "MixinHandledScreen"
   ],

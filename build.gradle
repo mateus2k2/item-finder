@@ -11,6 +11,16 @@ if (version.endsWith('-dev')) {
 
 base.archivesName = project.mod_file_name + '-' + project.minecraft_version_out
 
+// loom {
+//     // mixin.defaultRefmapName = "hexcasting.mixins.refmap.json"
+//     // accessWidenerPath = project(":common").loom.accessWidenerPath
+//     runs {
+//         client {
+//             programArgs(["--username", "mateus2k2", "--uuid", "742068c6-d556-43a5-9ae7-40c5f0c0bd6b"])
+//         }
+//     }
+// }
+
 java {
 	sourceCompatibility = JavaVersion.VERSION_21
 	targetCompatibility = JavaVersion.VERSION_21

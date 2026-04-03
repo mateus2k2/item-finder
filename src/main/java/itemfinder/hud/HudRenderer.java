@@ -2,6 +2,8 @@ package itemfinder.hud;
 
 import java.util.List;
 import org.joml.Matrix4f;
+import net.minecraft.block.ChestBlock;
+import net.minecraft.block.enums.ChestType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.render.BufferBuilder;
@@ -11,6 +13,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import fi.dy.masa.malilib.interfaces.IRenderer;
 import fi.dy.masa.malilib.render.GuiContext;
 import fi.dy.masa.malilib.render.MaLiLibPipelines;
@@ -203,35 +206,13 @@ public class HudRenderer implements IRenderer
         if (hasListResults)
         {
             for (ContainerResult result : listResults)
-            {
-                BlockPos pos = result.getPos();
-                float minX = (float) (pos.getX() - camPos.x - expand);
-                float minY = (float) (pos.getY() - camPos.y - expand);
-                float minZ = (float) (pos.getZ() - camPos.z - expand);
-                float maxX = (float) (pos.getX() - camPos.x + 1 + expand);
-                float maxY = (float) (pos.getY() - camPos.y + 1 + expand);
-                float maxZ = (float) (pos.getZ() - camPos.z + 1 + expand);
-
-                RenderUtils.drawBoxAllEdgesBatchedLines(
-                        minX, minY, minZ, maxX, maxY, maxZ, COLOR_LIST, lineWidth, buffer);
-            }
+                drawContainerBox(result.getPos(), mc, camPos, expand, lineWidth, COLOR_LIST, buffer);
         }
 
         if (hasSearchResults)
         {
             for (ContainerResult result : searchResults)
-            {
-                BlockPos pos = result.getPos();
-                float minX = (float) (pos.getX() - camPos.x - expand);
-                float minY = (float) (pos.getY() - camPos.y - expand);
-                float minZ = (float) (pos.getZ() - camPos.z - expand);
-                float maxX = (float) (pos.getX() - camPos.x + 1 + expand);
-                float maxY = (float) (pos.getY() - camPos.y + 1 + expand);
-                float maxZ = (float) (pos.getZ() - camPos.z + 1 + expand);
-
-                RenderUtils.drawBoxAllEdgesBatchedLines(
-                        minX, minY, minZ, maxX, maxY, maxZ, COLOR_SEARCH, lineWidth, buffer);
-            }
+                drawContainerBox(result.getPos(), mc, camPos, expand, lineWidth, COLOR_SEARCH, buffer);
         }
 
         try
@@ -245,6 +226,41 @@ public class HudRenderer implements IRenderer
             ctx.close();
         }
         catch (Exception ignored) {}
+    }
+
+    private static void drawContainerBox(BlockPos pos, MinecraftClient mc,
+            net.minecraft.util.math.Vec3d camPos, float expand, float lineWidth,
+            Color4f color, BufferBuilder buffer)
+    {
+        // Determine the bounding box — expand to cover both halves of a double chest
+        int x0 = pos.getX(), y0 = pos.getY(), z0 = pos.getZ();
+        int x1 = x0 + 1,    y1 = y0 + 1,    z1 = z0 + 1;
+
+        if (mc.world != null)
+        {
+            net.minecraft.block.BlockState state = mc.world.getBlockState(pos);
+            if (state.getBlock() instanceof ChestBlock && state.contains(ChestBlock.CHEST_TYPE))
+            {
+                ChestType type = state.get(ChestBlock.CHEST_TYPE);
+                if (type != ChestType.SINGLE)
+                {
+                    Direction facing = state.get(ChestBlock.FACING);
+                    Direction toPartner = (type == ChestType.LEFT)
+                            ? facing.rotateYClockwise()
+                            : facing.rotateYCounterclockwise();
+                    BlockPos partner = pos.offset(toPartner);
+                    x0 = Math.min(x0, partner.getX());
+                    z0 = Math.min(z0, partner.getZ());
+                    x1 = Math.max(x1, partner.getX() + 1);
+                    z1 = Math.max(z1, partner.getZ() + 1);
+                }
+            }
+        }
+
+        RenderUtils.drawBoxAllEdgesBatchedLines(
+                (float) (x0 - camPos.x - expand), (float) (y0 - camPos.y - expand), (float) (z0 - camPos.z - expand),
+                (float) (x1 - camPos.x + expand), (float) (y1 - camPos.y + expand), (float) (z1 - camPos.z + expand),
+                color, lineWidth, buffer);
     }
 
     private static String getDisplayName(String itemId)

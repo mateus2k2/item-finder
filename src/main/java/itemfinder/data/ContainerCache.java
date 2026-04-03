@@ -2,6 +2,7 @@ package itemfinder.data;
 
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.screen.ScreenHandler;
@@ -42,7 +43,11 @@ public class ContainerCache
             }
         }
 
-        if (!counts.isEmpty())
+        if (counts.isEmpty())
+        {
+            this.cache.remove(pos);
+        }
+        else
         {
             this.cache.put(pos, counts);
         }
@@ -53,10 +58,42 @@ public class ContainerCache
         return this.cache;
     }
 
+    /** Called by singleplayer scanner — reads directly from block entity inventory. */
+    public void cacheFromInventory(BlockPos pos, Inventory inv)
+    {
+        Map<String, Integer> counts = new HashMap<>();
+
+        for (int i = 0; i < inv.size(); i++)
+        {
+            ItemStack stack = inv.getStack(i);
+            if (!stack.isEmpty())
+            {
+                Identifier itemId = Registries.ITEM.getId(stack.getItem());
+                if (itemId != null)
+                {
+                    counts.merge(itemId.toString(), stack.getCount(), Integer::sum);
+                }
+            }
+        }
+
+        if (counts.isEmpty())
+        {
+            this.cache.remove(pos);
+        }
+        else
+        {
+            this.cache.put(pos, counts);
+        }
+    }
+
     /** Called by Servux response handler with pre-parsed item counts. */
     public void updateFromNbt(BlockPos pos, java.util.Map<String, Integer> counts)
     {
-        if (!counts.isEmpty())
+        if (counts.isEmpty())
+        {
+            this.cache.remove(pos);
+        }
+        else
         {
             this.cache.put(pos, counts);
         }
