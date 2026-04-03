@@ -19,9 +19,12 @@ public class ClientTickHandler implements IClientTickHandler
 
     private int searchTick;
     private int scanTick;
+    private int validateTick;
 
     /** How many ticks between full Servux scans (independent of search interval). */
-    private static final int SCAN_INTERVAL = 100;
+    private static final int SCAN_INTERVAL     = 100;
+    /** How many ticks between cache validation passes. */
+    private static final int VALIDATE_INTERVAL = 200;
 
     @Override
     public void onClientTick(MinecraftClient mc)
@@ -36,6 +39,13 @@ public class ClientTickHandler implements IClientTickHandler
         {
             this.searchTick = 0;
             ItemListManager.getInstance().runSearch();
+        }
+
+        // Periodic cache validation — evict positions whose block entity no longer exists
+        if (++this.validateTick >= VALIDATE_INTERVAL)
+        {
+            this.validateTick = 0;
+            validateCache(mc);
         }
 
         // Periodic scan — Servux on multiplayer, direct inventory read on singleplayer
@@ -59,6 +69,39 @@ public class ClientTickHandler implements IClientTickHandler
                 }
             }
         }
+    }
+
+    /**
+     * Evicts cached positions whose block entity no longer exists in the client world.
+     * Works for both singleplayer and multiplayer — the client world always reflects
+     * which blocks are present, even if it doesn't have the inventory contents.
+     * For Servux multiplayer, also re-requests surviving positions so contents stay fresh.
+     */
+    private void validateCache(MinecraftClient mc)
+    {
+        if (mc.world == null) return;
+
+        java.util.Set<net.minecraft.util.math.BlockPos> cached =
+                new java.util.HashSet<>(ContainerCache.getInstance().getCache().keySet());
+        if (cached.isEmpty()) return;
+
+        boolean changed = false;
+        for (net.minecraft.util.math.BlockPos pos : cached)
+        {
+            // Client world always knows which block entities exist (even without inventory data)
+            if (mc.world.getBlockEntity(pos) == null)
+            {
+                ContainerCache.getInstance().remove(pos);
+                changed = true;
+            }
+            else if (!mc.isInSingleplayer() && ServuxHandler.getInstance().isAvailable())
+            {
+                // Re-request to keep contents fresh on Servux servers
+                ServuxHandler.getInstance().requestBlockEntity(pos);
+            }
+        }
+
+        if (changed) ItemListManager.getInstance().runSearch();
     }
 
     private void scanSingleplayer(MinecraftClient mc)
