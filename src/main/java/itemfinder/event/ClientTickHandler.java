@@ -67,12 +67,16 @@ public class ClientTickHandler implements IClientTickHandler
         if (++this.scanTick >= SCAN_INTERVAL)
         {
             this.scanTick = 0;
-            if (mc.isInSingleplayer())
+            boolean singleplayer = mc.isInSingleplayer();
+            boolean litAvail     = LitematicaCompat.getInstance().isAvailable();
+            boolean hasServux    = litAvail && LitematicaCompat.getInstance().hasServuxServer();
+            debug("[Scan] singleplayer={} litAvail={} hasServux={}", singleplayer, litAvail, hasServux);
+
+            if (singleplayer)
             {
                 scanSingleplayer(mc);
             }
-            else if (LitematicaCompat.getInstance().isAvailable()
-                     && LitematicaCompat.getInstance().hasServuxServer())
+            else if (hasServux)
             {
                 scanMultiplayer(mc);
             }
@@ -99,11 +103,23 @@ public class ClientTickHandler implements IClientTickHandler
         List<BlockPos> containers = ContainerScanner.getInstance().findContainersInRadius();
         if (containers.isEmpty()) return;
 
-        debug("[Scan/MP] Requesting {} containers via Litematica/Servux", containers.size());
+        // Only request chunks for containers not already cached
+        List<BlockPos> uncached = new java.util.ArrayList<>();
+        for (BlockPos pos : containers)
+            if (!ContainerCache.getInstance().getCache().containsKey(pos))
+                uncached.add(pos);
+
+        if (uncached.isEmpty())
+        {
+            debug("[Scan/MP] All {} containers already cached, skipping request", containers.size());
+            return;
+        }
+
+        debug("[Scan/MP] Requesting {} uncached containers via Litematica/Servux", uncached.size());
 
         // Group by chunk and request each chunk once
         Set<ChunkPos> chunks = new HashSet<>();
-        for (BlockPos pos : containers)
+        for (BlockPos pos : uncached)
             chunks.add(new ChunkPos(pos));
 
         int minY = mc.world.getBottomY();
@@ -113,7 +129,7 @@ public class ClientTickHandler implements IClientTickHandler
             LitematicaCompat.getInstance().requestChunk(chunk, minY, maxY);
 
         // Schedule poll — wait until Litematica marks chunks as completed
-        this.pendingLitematicaPositions = containers;
+        this.pendingLitematicaPositions = uncached;
         this.pendingLitematicaChunks = chunks;
         this.litematicaPollTick = 0;
     }

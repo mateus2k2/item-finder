@@ -10,23 +10,26 @@ import itemfinder.config.Configs;
 import itemfinder.data.ContainerCache;
 import itemfinder.data.ItemListManager;
 
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Optional integration with Litematica's block entity data cache (via its Servux channel).
- * All Litematica classes are loaded reflectively so this compiles and runs without Litematica present.
- */
 public class LitematicaCompat
 {
     private static final LitematicaCompat INSTANCE = new LitematicaCompat();
     private static final Logger LOGGER = LoggerFactory.getLogger("itemfinder/LitematicaCompat");
 
-    /** Resolved once on first use; null if Litematica is not installed. */
-    private Object entitiesDataStorage = null;
-    private boolean checked = false;
+    private Object entitiesDataStorage  = null;
+    private boolean checked             = false;
+
+    private Method methodHasServuxServer   = null;
+    private Method methodHasBackupPackets  = null;
+    private Method methodHasCompletedChunk = null;
+    private Method methodRequestBulk       = null;
+    private Method methodRequestBackupBulk = null;
+    private Method methodGetFromCacheNbt   = null;
 
     private LitematicaCompat() {}
 
@@ -49,8 +52,9 @@ public class LitematicaCompat
         if (eds == null) return false;
         try
         {
-            boolean result = (boolean) eds.getClass().getMethod("hasServuxServer").invoke(eds);
-            return result;
+            boolean servux = methodHasServuxServer  != null && (boolean) methodHasServuxServer.invoke(eds);
+            boolean backup = methodHasBackupPackets != null && (boolean) methodHasBackupPackets.invoke(eds);
+            return servux || backup;
         }
         catch (Exception e)
         {
@@ -59,84 +63,69 @@ public class LitematicaCompat
         }
     }
 
-    /**
-     * Returns true when all given chunks have been marked completed by Litematica.
-     */
-    public boolean allChunksCompleted(Set<net.minecraft.util.math.ChunkPos> chunks)
+    public boolean allChunksCompleted(Set<ChunkPos> chunks)
     {
         Object eds = resolveStorage();
-        if (eds == null) return true;
+        if (eds == null || methodHasCompletedChunk == null) return true;
         try
         {
-            java.lang.reflect.Method hasCompleted = eds.getClass()
-                    .getMethod("hasCompletedChunk", net.minecraft.util.math.ChunkPos.class);
-            for (net.minecraft.util.math.ChunkPos chunk : chunks)
-            {
-                if (!(boolean) hasCompleted.invoke(eds, chunk)) return false;
-            }
+            for (ChunkPos chunk : chunks)
+                if (!(boolean) methodHasCompletedChunk.invoke(eds, chunk)) return false;
             return true;
         }
         catch (Exception e)
         {
-            // If method not found, fall back to timeout-based polling
             return true;
         }
     }
 
-    /**
-     * Request block entity data for all containers in the given chunk from Litematica/Servux.
-     * Litematica batches these by chunk automatically.
-     */
     public void requestChunk(ChunkPos chunkPos, int minY, int maxY)
     {
         Object eds = resolveStorage();
         if (eds == null) return;
         try
         {
-            eds.getClass()
-               .getMethod("requestServuxBulkEntityData",
-                       net.minecraft.util.math.ChunkPos.class, int.class, int.class)
-               .invoke(eds, chunkPos, minY, maxY);
-            debug("[LitematicaCompat] requestServuxBulkEntityData chunk={}", chunkPos);
+            boolean servux = methodHasServuxServer  != null && (boolean) methodHasServuxServer.invoke(eds);
+            boolean backup = methodHasBackupPackets != null && (boolean) methodHasBackupPackets.invoke(eds);
+
+            if (servux && methodRequestBulk != null)
+            {
+                methodRequestBulk.invoke(eds, chunkPos, minY, maxY);
+                debug("[LitematicaCompat] requestChunk (servux) chunk={}", chunkPos);
+            }
+            else if (backup && methodRequestBackupBulk != null)
+            {
+                methodRequestBackupBulk.invoke(eds, chunkPos, minY, maxY);
+                debug("[LitematicaCompat] requestChunk (backup) chunk={}", chunkPos);
+            }
         }
         catch (Exception e)
         {
-            LOGGER.warn("[LitematicaCompat] requestServuxBulkEntityData failed: {}", e.getMessage());
+            LOGGER.warn("[LitematicaCompat] requestChunk failed: {}", e.getMessage());
         }
     }
 
-    /**
-     * Read whatever Litematica has cached for this position and populate our ContainerCache.
-     * Returns true if data was found and applied.
-     */
     public boolean pullFromCache(BlockPos pos)
     {
         Object eds = resolveStorage();
-        if (eds == null) return false;
+        if (eds == null || methodGetFromCacheNbt == null) return false;
         try
         {
-            // getFromBlockEntityCacheNbt returns net.minecraft.nbt.NbtCompound at runtime (Yarn)
-            // even though Litematica source uses Mojang name "CompoundTag" — same class at runtime
-            Object rawNbt = eds.getClass()
-                              .getMethod("getFromBlockEntityCacheNbt", BlockPos.class)
-                              .invoke(eds, pos);
-            debug("[LitematicaCompat] pullFromCache pos={} rawNbt={}", pos, rawNbt);
+            Object rawNbt = methodGetFromCacheNbt.invoke(eds, pos);
             if (rawNbt == null) return false;
 
             NbtCompound nbt = (NbtCompound) rawNbt;
-            debug("[LitematicaCompat] nbt keys={}", nbt.getKeys());
             if (nbt.isEmpty()) return false;
 
             NbtList items = nbt.getList("Items").orElse(new NbtList());
-            debug("[LitematicaCompat] Items list size={}", items.size());
             if (items.isEmpty()) return false;
 
             Map<String, Integer> counts = new HashMap<>();
             for (int i = 0; i < items.size(); i++)
             {
-                NbtCompound slot  = items.getCompound(i).orElse(new NbtCompound());
-                String itemId     = slot.getString("id").orElse("");
-                int    count      = slot.getInt("count").orElse(0);
+                NbtCompound slot = items.getCompound(i).orElse(new NbtCompound());
+                String itemId    = slot.getString("id").orElse("");
+                int    count     = slot.getInt("count").orElse(0);
                 if (!itemId.isEmpty())
                     counts.merge(itemId, count, Integer::sum);
             }
@@ -151,17 +140,30 @@ public class LitematicaCompat
         }
     }
 
-    /**
-     * Pull cached data for a batch of positions; triggers a search if anything changed.
-     */
     public void pullFromCache(Collection<BlockPos> positions)
     {
         boolean changed = false;
         for (BlockPos pos : positions)
-        {
             if (pullFromCache(pos)) changed = true;
+
+        if (changed)
+            net.minecraft.client.MinecraftClient.getInstance().execute(
+                    ItemListManager.getInstance()::runSearch);
+    }
+
+    // ---- internals -------------------------------------------------------
+
+    private static Method tryGetMethod(Class<?> cls, String name, Class<?>... params)
+    {
+        try
+        {
+            return cls.getMethod(name, params);
         }
-        if (changed) ItemListManager.getInstance().runSearch();
+        catch (NoSuchMethodException e)
+        {
+            LOGGER.warn("[LitematicaCompat] method not found: {}", name);
+            return null;
+        }
     }
 
     private Object resolveStorage()
@@ -172,11 +174,19 @@ public class LitematicaCompat
         {
             Class<?> cls = Class.forName("fi.dy.masa.litematica.data.EntitiesDataStorage");
             this.entitiesDataStorage = cls.getMethod("getInstance").invoke(null);
-            LOGGER.info("[LitematicaCompat] Litematica EntitiesDataStorage found — multiplayer scanning enabled");
+
+            this.methodHasServuxServer   = tryGetMethod(cls, "hasServuxServer");
+            this.methodHasBackupPackets  = tryGetMethod(cls, "getIfReceivedBackupPackets");
+            this.methodHasCompletedChunk = tryGetMethod(cls, "hasCompletedChunk", ChunkPos.class);
+            this.methodRequestBulk       = tryGetMethod(cls, "requestServuxBulkEntityData", ChunkPos.class, int.class, int.class);
+            this.methodRequestBackupBulk = tryGetMethod(cls, "requestBackupBulkEntityData", ChunkPos.class, int.class, int.class);
+            this.methodGetFromCacheNbt   = tryGetMethod(cls, "getFromBlockEntityCacheNbt", BlockPos.class);
+
+            // LOGGER.info("[LitematicaCompat] Litematica found — multiplayer scanning enabled");
         }
         catch (ClassNotFoundException e)
         {
-            LOGGER.info("[LitematicaCompat] Litematica not installed — multiplayer scanning disabled");
+            // LOGGER.info("[LitematicaCompat] Litematica not installed — multiplayer scanning disabled");
         }
         catch (Exception e)
         {

@@ -47,9 +47,7 @@ public abstract class MixinHandledScreen extends Screen
             BlockPos pos = hit.getBlockPos();
 
             if (mc.world != null && mc.world.getBlockEntity(pos) != null)
-            {
                 this.itemfinder_containerPos = pos;
-            }
         }
     }
 
@@ -65,7 +63,7 @@ public abstract class MixinHandledScreen extends Screen
 
     @Inject(method = "render", at = @At("TAIL"))
     private void itemfinder_highlightSlots(DrawContext drawContext, int mouseX, int mouseY, float delta, CallbackInfo ci)
-    {
+    {   
         if (!Configs.Generic.HIGHLIGHT_SLOTS.getBooleanValue()) return;
         if (!Configs.Generic.ENABLED.getBooleanValue()) return;
 
