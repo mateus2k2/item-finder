@@ -1,5 +1,11 @@
 # Item Finder
 
+[![Modrinth](https://img.shields.io/badge/Modrinth-item--finder-00AF5C?logo=modrinth)](https://modrinth.com/mod/item-finder)
+
+> **Work In Progress** — this mod is functional but still in early development. Expect rough edges, missing features, and bugs. Performance is not a priority yet and may be noticeably poor in some situations.
+
+> **AI Assistance Disclosure** — portions of this mod were developed with the help of AI tools (Claude). The code has been reviewed and tested, but keep that in mind.
+
 A client-side Fabric mod for Minecraft 1.21/1.21.1 that helps you locate items stored in nearby containers. It caches container inventories as you open them and displays a HUD with the nearest container holding your target item, along with colored outlines rendered directly in the world.
 
 
@@ -8,6 +14,12 @@ A client-side Fabric mod for Minecraft 1.21/1.21.1 that helps you locate items s
 Item Finder is **client-side only** — it does not require a server-side counterpart and works on both singleplayer and multiplayer. The trade-off is that containers must be **visited at least once** before they appear in search results. When you open a container, its contents are automatically recorded. When you close it, the cache is updated and a new search runs immediately.
 
 A periodic background search re-runs every N ticks (configurable) so that distances stay current as you move around.
+
+### Server Support (Optional)
+
+For a better experience on servers, [Litematica](https://www.curseforge.com/minecraft/mc-mods/litematica) can be installed on the client alongside Item Finder. When Litematica is present, it enables finding items in containers near the player without needing to manually open each one.
+
+However, this requires [Servux](https://github.com/sakura-ryoko/servux) to be installed **on the server** and the `entityDataSync` option to be enabled in the server-side Servux configuration. Without that, only the standard visit-and-cache approach will work.
 
 ## Features
 
@@ -120,8 +132,7 @@ The output jar will be in `build/libs/`.
 ## TODO
 
 ### Container & Data
-- Try using Servux to retrieve container item information.
-- Investigate whether container data around the player can be accessed and synced to the client.
+- Improve Litematica/Servux integration for syncing container data around the player.
 
 ---
 
